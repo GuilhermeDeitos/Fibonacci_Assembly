@@ -1,7 +1,5 @@
 ;Trabalho Fibonacci Guilherme Deitos e Gabriel Yudi
-%define maxChars 3
-%define createOpenR 101o
-%define userPermissions 644o 
+%define maxChars 10
 
 section .data
     strPrint : db "Digite o numero para calcularmos o fibonacci: "
@@ -10,12 +8,19 @@ section .data
     strError : db "Erro ao calcular o fibonacci, verifique a entrada"
     strErrorL : equ $ - strError
 
-    strNomeArq: db "./fibonacci.bin"
+    strLF  : db 10 ; quebra de linha
+    strLFL : equ 1
+
+    strNomeArq: db "fib(n).bin"
 section .bss
     strInput : resb maxChars
     strInputL : equ $ - strInput
     fileHandle : resd 1
+    n1: resd 1
+    n2: resd 1
     numFibo : resb 2
+    buffer  : resb 32
+
 
     resultFibonacci : resd 8
     resultFibonacciL : equ $ - resultFibonacci
@@ -27,12 +32,12 @@ section .text
 _start:
 
 openArq:
+    ; Abrir arquivo
     mov rax, 2
     lea rdi, [strNomeArq]
-    mov rsi, createOpenR
-    mov rdx, userPermissions
+    mov rsi, 102o  ; createOpenR
+    mov rdx, 644o  ; userPermissions
     syscall
-
     mov [fileHandle], rax
 
 write:
@@ -43,20 +48,29 @@ write:
     syscall 
 
 read:
+    ; Ler input do usuário
     mov rax, 0
-    mov rdi, 1
+    mov rdi, 0
     lea rsi, [strInput]
     mov rdx, strInputL
     syscall
 
-    mov ax, [strInput]
-
 
 tratandoValores:
-    sub ah, '0'
-    sub al, '0'
-    mov [numFibo], ax
-    
+    mov r9b, byte [strInput]
+    sub r9b, '0' ;transforma o valor em inteiro
+    mov r10b, byte [strInput+1]
+
+    cmp r10d, 0xa; Verifica se é enter
+    je verificaLimites ;Caso tenha 1 digito, já passa para o verifica limites, caso tenha 2, é tratado isso com o r10d
+
+
+    mov r10b, byte[strInput]
+    sub r10d, '0' ;transforma o valor em inteiro
+
+    mov rax, 0xa
+    mul r9d
+    add eax, r10d 
 
 verificaLimites:
     cmp ax, 99
@@ -69,23 +83,37 @@ verificaLimites:
 
 
 calcFibo:
-    mov r8d, 0  ;f(n-2)
-    mov r9d, 1  ;f(n-1)
-    mov r10d, 1 ;f(n)
-
-    cmp ax, 1
+    cmp byte [strInput], 1
     je writeArq
 
-forFibo:
-    mov r10d, r8d
-    add r10d, r9d
-    mov r8d, r9d
-    mov r9d, r10d
+    cmp byte [strInput], 2
+    je writeArq
 
-    
-    dec ax
+    mov byte [n1], 1; f(n-2)
+    mov byte [n2], 1; f(n-2)
+    mov r13d, 3
+
+forFibo:
+    mov r11d, [n1]
+    mov r12d, [n1]
+    add r12d, [n1]
+    mov [n1], r12d
+    mov [n2], r11d
+    cmp r13d, 0
+    je writeArq
+    inc r13d
     jnz forFibo
 
+limpabuffer:
+    ; lê 32 byte (32 char) do buffer
+    mov rax, 0
+    mov rdi, 0
+    lea rsi, buffer
+    mov edx, 32
+    syscall
+
+    mov r9, 0       
+    
 writeArqError:
     mov rax, 1
     mov rdi, 1
@@ -95,11 +123,10 @@ writeArqError:
     jmp fecharArq
 
 writeArq:
-    mov [resultFibonacci], r10d
     mov rax, 1
     mov rdi, [fileHandle]
-    lea rsi, [resultFibonacci]
-    mov edx, resultFibonacciL
+    lea rsi, [n1]
+    mov edx, 4
     syscall
 
 
